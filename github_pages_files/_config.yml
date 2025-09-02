@@ -1,0 +1,26 @@
+title: "Semantic Poetry Explorer"
+description: "Interactive visualization of semantic spaces in canonical and naive poetry"
+baseurl: "/word2vec_explorer"
+url: "https://mary-lev.github.io"
+
+# GitHub Pages settings
+remote_theme: minima
+plugins:
+  - jekyll-sitemap
+  - jekyll-feed
+
+# Build settings
+markdown: kramdown
+highlighter: rouge
+
+# Exclude files
+exclude:
+  - README.md
+  - LICENSE
+  - Gemfile
+  - Gemfile.lock
+  - node_modules
+  - vendor
+  - .sass-cache
+  - .jekyll-cache
+  - .DS_Store
