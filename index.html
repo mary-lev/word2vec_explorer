@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Semantic Poetry Explorer - Сравнение канонической и наивной поэзии</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/plotly.js@2.20.0/dist/plotly.min.js"></script>
+    <style>
+        body {
+            background-color: white;
+            font-family: 'Arial', sans-serif;
+        }
+        
+        .word-input {
+            font-size: 1.2em;
+            padding: 12px;
+            border-radius: 8px;
+            border: 2px solid #0066cc;
+            background-color: white;
+        }
+        
+        .btn-primary {
+            background-color: #0066cc;
+            border-color: #0066cc;
+        }
+        
+        .btn-primary:hover {
+            background-color: #0052a3;
+            border-color: #0052a3;
+        }
+        
+        .visualization-container {
+            min-height: 600px;
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .neighbor-list {
+            max-height: 400px;
+            overflow-y: auto;
+            background: white;
+        }
+        
+        .similarity-score {
+            font-weight: bold;
+            color: #0066cc;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            color: #6c757d;
+        }
+        
+        .word-highlight {
+            background-color: #e6f3ff;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: bold;
+            color: #0066cc;
+        }
+        
+        .model-canonical {
+            border-left: 4px solid #0066cc;
+            background-color: white;
+        }
+        
+        .model-naive {
+            border-left: 4px solid #666;
+            background-color: white;
+        }
+        
+        .card-header.bg-success {
+            background-color: #0066cc !important;
+        }
+        
+        .card-header.bg-danger {
+            background-color: #666 !important;
+        }
+        
+        .bg-primary {
+            background-color: #0066cc !important;
+        }
+        
+        .word-suggestion {
+            color: #0066cc !important;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+        
+        .word-suggestion:hover {
+            color: #0052a3 !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <header class="bg-primary text-white py-4 mb-4">
+            <div class="container">
+                <h1 class="mb-0">Semantic Poetry Explorer</h1>
+                <p class="lead mb-0">Интерактивное сравнение семантических пространств канонической и наивной поэзии</p>
+            </div>
+        </header>
+
+        <div class="container">
+            <div class="row mb-4">
+                <div class="col-md-8 mx-auto">
+                    <div class="input-group input-group-lg">
+                        <input type="text" 
+                               class="form-control word-input" 
+                               id="wordInput" 
+                               placeholder="Введите слово для анализа (например: любовь, солнце, душа)"
+                               value="поэзия">
+                        <button class="btn btn-primary btn-lg" type="button" id="analyzeBtn">
+                            Анализировать
+                        </button>
+                    </div>
+                    <div class="mt-2">
+                        <small class="text-muted">
+                            Доступные слова: 
+                            <span class="word-suggestion" data-word="поэзия">поэзия</span>, 
+                            <span class="word-suggestion" data-word="любовь">любовь</span>, 
+                            <span class="word-suggestion" data-word="душа">душа</span>
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="loading" id="loadingIndicator">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Загрузка...</span>
+                </div>
+                <p>Анализируем семантическое пространство...</p>
+            </div>
+
+            <div id="resultsContainer" style="display: none;">
+                <!-- Word Info -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="mb-0">Анализ слова: <span id="currentWord" class="word-highlight"></span></h3>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <strong>Косинусное сходство:</strong>
+                                        <span id="cosineSimilarity" class="similarity-score"></span>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <strong>Пересечение соседей:</strong>
+                                        <span id="neighborOverlap" class="similarity-score"></span>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <strong>Тип сдвига:</strong>
+                                        <span id="shiftType" class="badge"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Visualization -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h4 class="mb-0">t-SNE Визуализация семантических соседей</h4>
+                            </div>
+                            <div class="card-body">
+                                <div id="tsneVisualization" class="visualization-container"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Neighbors Comparison -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card model-canonical">
+                            <div class="card-header bg-success text-white">
+                                <h5 class="mb-0">Каноническая поэзия</h5>
+                            </div>
+                            <div class="card-body neighbor-list" id="canonicalNeighbors">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card model-naive">
+                            <div class="card-header bg-danger text-white">
+                                <h5 class="mb-0">Наивная поэзия</h5>
+                            </div>
+                            <div class="card-body neighbor-list" id="naiveNeighbors">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Embedded data to avoid CORS issues
+        const DEMO_DATA = {
+            'поэзия': {
+                'cosine_similarity': 0.75,
+                'neighbor_overlap': 0.4,
+                'shift_type': 'Context Shift',
+                'shift_class': 'warning',
+                'canonical_neighbors': [
+                    ['искусство', 0.494], ['толстой', 0.482], ['верлен', 0.467], 
+                    ['сложность', 0.462], ['н', 0.454], ['поэт', 0.440],
+                    ['стих', 0.435], ['современный', 0.432], ['русский', 0.428]
+                ],
+                'naive_neighbors': [
+                    ['поэтический', 0.754], ['искусство', 0.692], ['современный', 0.671], 
+                    ['литературный', 0.657], ['творчество', 0.653], ['стихотворный', 0.648],
+                    ['автор', 0.643], ['проза', 0.638], ['поэт', 0.635]
+                ],
+                'visualization_data': {
+                    'words': ['поэзия', 'русский', 'поэт', 'искусство', 'стих', 'рифма', 'гений', 'современный', 'литература', 'автор', 'проза', 'поэтический', 'творчество', 'стихотворный', 'литературный', 'стиль', 'лирика', 'содержание'],
+                    'word_status': ['target', 'both', 'both', 'both', 'canonical', 'canonical', 'canonical', 'both', 'canonical', 'both', 'both', 'naive', 'naive', 'naive', 'naive', 'naive', 'naive', 'naive'],
+                    'coords': [
+                        [0.0, 0.0], [-1.2, 0.8], [-0.5, 1.5], [1.0, -0.8], [-2.0, 1.2], 
+                        [2.5, 0.5], [-1.8, -0.5], [1.5, 1.0], [2.2, -1.2], [1.8, 0.2], 
+                        [2.0, -0.5], [-2.5, -1.0], [-3.0, 0.5], [-1.5, -2.0], [3.0, 0.8], 
+                        [2.8, -1.8], [3.2, -0.2], [3.5, -1.0]
+                    ]
+                }
+            },
+            'любовь': {
+                'cosine_similarity': 0.85,
+                'neighbor_overlap': 0.6,
+                'shift_type': 'Stable',
+                'shift_class': 'success',
+                'canonical_neighbors': [
+                    ['страсть', 0.82], ['сердце', 0.78], ['душа', 0.75], ['чувство', 0.72], ['нежность', 0.7]
+                ],
+                'naive_neighbors': [
+                    ['чувство', 0.8], ['сердце', 0.76], ['страсть', 0.74], ['отношения', 0.72], ['душа', 0.7]
+                ]
+            },
+            'душа': {
+                'cosine_similarity': 0.9,
+                'neighbor_overlap': 0.8,
+                'shift_type': 'Stable',
+                'shift_class': 'success',
+                'canonical_neighbors': [
+                    ['сердце', 0.85], ['дух', 0.82], ['любовь', 0.8], ['чувство', 0.78], ['мысль', 0.75]
+                ],
+                'naive_neighbors': [
+                    ['сердце', 0.83], ['чувство', 0.81], ['любовь', 0.79], ['дух', 0.77], ['настроение', 0.74]
+                ]
+            }
+        };
+
+        class SemanticPoetryExplorer {
+            constructor() {
+                this.wordData = DEMO_DATA;
+                this.init();
+            }
+
+            init() {
+                this.setupEventListeners();
+                this.analyzeWord('поэзия');
+            }
+
+            setupEventListeners() {
+                const wordInput = document.getElementById('wordInput');
+                const analyzeBtn = document.getElementById('analyzeBtn');
+                const suggestions = document.querySelectorAll('.word-suggestion');
+
+                analyzeBtn.addEventListener('click', () => {
+                    const word = wordInput.value.trim();
+                    if (word) this.analyzeWord(word);
+                });
+
+                wordInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        const word = wordInput.value.trim();
+                        if (word) this.analyzeWord(word);
+                    }
+                });
+
+                suggestions.forEach(span => {
+                    span.addEventListener('click', () => {
+                        const word = span.getAttribute('data-word');
+                        wordInput.value = word;
+                        this.analyzeWord(word);
+                    });
+                });
+            }
+
+            analyzeWord(word) {
+                this.showLoading(true);
+                document.getElementById('resultsContainer').style.display = 'none';
+                
+                setTimeout(() => {
+                    this.displayResults(word);
+                    this.showLoading(false);
+                }, 500);
+            }
+
+            displayResults(word) {
+                const data = this.wordData[word.toLowerCase()];
+                
+                if (!data) {
+                    this.showError(`Слово "${word}" не найдено. Доступные слова: поэзия, любовь, душа`);
+                    return;
+                }
+
+                // Update word info
+                document.getElementById('currentWord').textContent = word;
+                document.getElementById('cosineSimilarity').textContent = data.cosine_similarity.toFixed(3);
+                document.getElementById('neighborOverlap').textContent = data.neighbor_overlap.toFixed(3);
+                
+                const shiftTypeElement = document.getElementById('shiftType');
+                shiftTypeElement.textContent = data.shift_type;
+                shiftTypeElement.className = `badge bg-${data.shift_class}`;
+
+                // Create visualization
+                this.createVisualization(word, data);
+
+                // Display neighbors
+                this.displayNeighbors(data.canonical_neighbors, 'canonicalNeighbors');
+                this.displayNeighbors(data.naive_neighbors, 'naiveNeighbors');
+
+                document.getElementById('resultsContainer').style.display = 'block';
+            }
+
+            createVisualization(word, data) {
+                const container = document.getElementById('tsneVisualization');
+                container.innerHTML = '';
+
+                if (data.visualization_data) {
+                    this.createExactScatterPlot(word, data.visualization_data, data, container);
+                } else {
+                    this.createSimpleVisualization(word, data, container);
+                }
+            }
+
+            createExactScatterPlot(targetWord, visData, data, container) {
+                const words = visData.words;
+                const wordStatus = visData.word_status;
+                const coords = visData.coords;
+
+                const scatterData = [];
+                const textData = [];
+
+                words.forEach((word, i) => {
+                    const [x, y] = coords[i];
+                    const status = wordStatus[i];
+                    let marker, textProps;
+
+                    if (status === 'target') {
+                        marker = { symbol: 'diamond', color: 'black', size: 20 };
+                        textProps = { text: word, font: { size: 18, color: 'black' } };
+                    } else if (status === 'both') {
+                        marker = { symbol: 'diamond', color: 'black', size: 12 };
+                        textProps = { text: `<b>${word}</b>`, font: { size: 14, color: 'black' } };
+                    } else if (status === 'canonical') {
+                        marker = { symbol: 'circle', color: 'white', size: 10, line: { width: 1.5, color: 'black' } };
+                        textProps = { text: word, font: { size: 14, color: 'black' } };
+                    } else {
+                        marker = { symbol: 'square', color: 'black', size: 8 };
+                        textProps = { text: word, font: { size: 14, color: 'black' } };
+                    }
+
+                    scatterData.push({
+                        x: [x], y: [y], mode: 'markers', marker: marker,
+                        name: status, showlegend: false, type: 'scatter',
+                        hovertemplate: `<b>${word}</b><extra></extra>`
+                    });
+
+                    textData.push({
+                        x: [x], y: [y], mode: 'text', text: [textProps.text],
+                        textfont: textProps.font, textposition: 'top center',
+                        showlegend: false, hoverinfo: 'skip', type: 'scatter'
+                    });
+                });
+
+                const layout = {
+                    title: {
+                        text: `Семантическое окружение слова "${targetWord}" в канонической и наивной поэзии`,
+                        font: { size: 16, family: 'Arial, sans-serif', color: 'black' }
+                    },
+                    xaxis: { showticklabels: false, showgrid: true, gridcolor: '#e0e0e0', zeroline: false },
+                    yaxis: { showticklabels: false, showgrid: true, gridcolor: '#e0e0e0', zeroline: false },
+                    plot_bgcolor: 'white',
+                    paper_bgcolor: 'white',
+                    hovermode: 'closest',
+                    margin: { l: 50, r: 200, t: 80, b: 50 },
+                    annotations: [{
+                        x: 1.02, y: 1, xref: 'paper', yref: 'paper',
+                        text: '◯ Только в канонической поэзии (обычный шрифт)<br>' +
+                              '■ Только в наивной поэзии (подчёркнутый шрифт)<br>' +
+                              '◆ В обоих корпусах (жирный шрифт)',
+                        showarrow: false, align: 'left', bgcolor: 'white',
+                        bordercolor: 'black', borderwidth: 1,
+                        font: { size: 12, family: 'Arial, sans-serif', color: 'black' }
+                    }]
+                };
+
+                Plotly.newPlot(container, [...scatterData, ...textData], layout, {
+                    responsive: true, displayModeBar: false
+                });
+
+                this.addSimilarityInfo(targetWord, data, container);
+            }
+
+            createSimpleVisualization(word, data, container) {
+                container.innerHTML = `
+                    <div class="text-center p-4">
+                        <h5>Семантические соседи слова "${word}"</h5>
+                        <p class="text-muted">Детальная визуализация доступна только для слова "поэзия"</p>
+                    </div>
+                `;
+            }
+
+            addSimilarityInfo(targetWord, data, container) {
+                const infoDiv = document.createElement('div');
+                infoDiv.className = 'mt-3 p-3 border rounded bg-light';
+                infoDiv.innerHTML = `
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6><strong>Топ-5 в канонической поэзии:</strong></h6>
+                            <small>
+                                ${data.canonical_neighbors.slice(0, 5).map(([word, sim]) => 
+                                    `<span class="badge bg-secondary me-1">${word}: ${sim.toFixed(3)}</span>`
+                                ).join('')}
+                            </small>
+                        </div>
+                        <div class="col-md-6">
+                            <h6><strong>Топ-5 в наивной поэзии:</strong></h6>
+                            <small>
+                                ${data.naive_neighbors.slice(0, 5).map(([word, sim]) => 
+                                    `<span class="badge bg-dark me-1">${word}: ${sim.toFixed(3)}</span>`
+                                ).join('')}
+                            </small>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(infoDiv);
+            }
+
+            displayNeighbors(neighbors, containerId) {
+                const container = document.getElementById(containerId);
+                container.innerHTML = '';
+                
+                const list = document.createElement('ol');
+                list.className = 'list-group list-group-numbered';
+                
+                neighbors.forEach(([neighbor, similarity]) => {
+                    const item = document.createElement('li');
+                    item.className = 'list-group-item d-flex justify-content-between align-items-center';
+                    
+                    const wordSpan = document.createElement('span');
+                    wordSpan.textContent = neighbor;
+                    wordSpan.style.cursor = 'pointer';
+                    wordSpan.style.color = '#0066cc';
+                    wordSpan.addEventListener('click', () => {
+                        document.getElementById('wordInput').value = neighbor;
+                        this.analyzeWord(neighbor);
+                    });
+                    
+                    const badge = document.createElement('span');
+                    badge.className = 'badge bg-primary rounded-pill';
+                    badge.textContent = similarity.toFixed(3);
+                    
+                    item.appendChild(wordSpan);
+                    item.appendChild(badge);
+                    list.appendChild(item);
+                });
+                
+                container.appendChild(list);
+            }
+
+            showLoading(show) {
+                document.getElementById('loadingIndicator').style.display = show ? 'block' : 'none';
+            }
+
+            showError(message) {
+                this.showLoading(false);
+                const container = document.getElementById('tsneVisualization');
+                container.innerHTML = `
+                    <div class="alert alert-warning text-center">
+                        <h4>Внимание</h4>
+                        <p>${message}</p>
+                    </div>
+                `;
+                document.getElementById('resultsContainer').style.display = 'block';
+            }
+        }
+
+        // Initialize when DOM loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new SemanticPoetryExplorer();
+        });
+    </script>
+</body>
+</html>
