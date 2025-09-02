@@ -16,22 +16,22 @@
             font-size: 1.2em;
             padding: 12px;
             border-radius: 8px;
-            border: 2px solid #0066cc;
+            border: 2px solid #333333;
             background-color: white;
         }
         
         .btn-primary {
-            background-color: #0066cc;
-            border-color: #0066cc;
+            background-color: #333333;
+            border-color: #333333;
         }
         
         .btn-primary:hover {
-            background-color: #0052a3;
-            border-color: #0052a3;
+            background-color: #000000;
+            border-color: #000000;
         }
         
         .visualization-container {
-            min-height: 600px;
+            min-height: 800px;
             background: white;
             border: 1px solid #dee2e6;
             border-radius: 10px;
@@ -47,7 +47,7 @@
         
         .similarity-score {
             font-weight: bold;
-            color: #0066cc;
+            color: #333333;
         }
         
         .loading {
@@ -57,43 +57,43 @@
         }
         
         .word-highlight {
-            background-color: #e6f3ff;
+            background-color: #f0f0f0;
             padding: 2px 6px;
             border-radius: 3px;
             font-weight: bold;
-            color: #0066cc;
+            color: #333333;
         }
         
         .model-canonical {
-            border-left: 4px solid #0066cc;
+            border-left: 4px solid #333333;
             background-color: white;
         }
         
         .model-naive {
-            border-left: 4px solid #666;
+            border-left: 4px solid #666666;
             background-color: white;
         }
         
         .card-header.bg-success {
-            background-color: #0066cc !important;
+            background-color: #333333 !important;
         }
         
         .card-header.bg-danger {
-            background-color: #666 !important;
+            background-color: #666666 !important;
         }
         
         .bg-primary {
-            background-color: #0066cc !important;
+            background-color: #333333 !important;
         }
         
         .word-suggestion {
-            color: #0066cc !important;
+            color: #333333 !important;
             cursor: pointer;
             text-decoration: underline;
         }
         
         .word-suggestion:hover {
-            color: #0052a3 !important;
+            color: #000000 !important;
         }
     </style>
 </head>
@@ -395,7 +395,8 @@
                     plot_bgcolor: 'white',
                     paper_bgcolor: 'white',
                     hovermode: 'closest',
-                    margin: { l: 50, r: 200, t: 80, b: 50 },
+                    margin: { l: 60, r: 240, t: 100, b: 80 },
+                    height: 700,
                     annotations: [{
                         x: 1.02, y: 1, xref: 'paper', yref: 'paper',
                         text: '◯ Только в канонической поэзии (обычный шрифт)<br>' +
@@ -463,7 +464,7 @@
                     const wordSpan = document.createElement('span');
                     wordSpan.textContent = neighbor;
                     wordSpan.style.cursor = 'pointer';
-                    wordSpan.style.color = '#0066cc';
+                    wordSpan.style.color = '#333333';
                     wordSpan.addEventListener('click', () => {
                         document.getElementById('wordInput').value = neighbor;
                         this.analyzeWord(neighbor);
